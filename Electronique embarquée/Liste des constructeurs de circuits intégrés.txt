@@ -1,0 +1,36 @@
+Liste des constructeurs des circuits intégrés:
+
+
+
+STMElectronics
+Espressif(ESP32)
+NXP
+Analog Device
+Linear technologies
+Texas Instruments
+Nordic Semiconductor
+Wurth(gratuit)
+
+
+Liste des fournisseurs de composants:
+
+
+//Electronique professionelle
+-Mouser
+-Farnell
+-DigiKey(-)
+-RS(Radiospares)
+-LSSC 
+
+
+//Electronique Hobbyist
+
+-Gotronic
+-Adafruit
+-Conrad
+
+
+
+Le site pour fabricants de PCB :
+jlcpcb/parts
+

@@ -1,0 +1,1 @@
+Regarde l'ordre des octets. The correct answer is 0x012C, soit 300 mm.L'octet de poids fort arrive en premier : (0x01 << 8) | 0x2C = 256 + 44 = 300 mm. En C : dist = (buf[0] << 8) | buf[1];

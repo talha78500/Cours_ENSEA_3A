@@ -1,0 +1,23 @@
+Seance 1 : Brainstorming sur le projet et répartition des tâches
+
+Axel,Amr=Schéma + PCB
+
+Talha,Salim,Yehia : Informatique
+
+
+Séance 2 : Choix des capteurs lidar ou non?
+
+
+
+
+
+
+Séance 3:
+
+
+
+
+Seance du 08/10/2026:
+
+Je vais tenter de coder la bsp et le app de mon code qui fonctionne pour le capteur.
+

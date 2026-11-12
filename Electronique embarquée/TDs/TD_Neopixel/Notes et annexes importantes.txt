@@ -1,0 +1,26 @@
+Période du bit :
+
+1250ns
+
+Calcul du ARR :
+
+1250*170 000 000 / 1 000 000 000
+
+1250
+212.5
+
+ARR=(213-1)
+Bit0(T0H)
+400ns
+Tick 68 
+CCR=68
+
+Bit1(T1H)
+800ns 
+136tikc CCR=136ticks
+
+
+q4)SUite timer 
+
+https://github.com/lfiack/ENSEA_3ESE_embprog_public
+

@@ -1,0 +1,16 @@
+0.Configurer le timer6
+
+*Pas d'interruption
+*Prescale 170-1
+* Project Manager - Advanced Settings - LL
+
+1)Include string.h
+
+2)_io_putchar_pour_printf
+3)Creation de chaine de caractères
+4)Start counter
+5)Transmit huart2
+6)Stop counter
+7)Put counter back to 0:
+8)Display time
+

@@ -1,0 +1,233 @@
+# TD – Séance 1 : notes enseignant
+
+Éléments de correction et points de vigilance pour la fiche `TD1_hardware_fiche_eleve.md`.
+
+**Statut des informations.** Les valeurs de datasheet proviennent du BQ25896 (SLUSC76C, pages citées) et du BQ27220 (SLUSCB7A). Les valeurs de composants du schéma viennent de la netlist intégrée au PDF et de la lecture du dessin : **à revérifier sur le schéma original avant distribution**. Ce qui est une hypothèse est marqué *(hypothèse)*, ce que je n'ai pas vérifié est marqué *(à vérifier)*.
+
+## Organisation conseillée
+
+La fiche contient environ 40 questions, plus que 90 minutes n'en permettent. Deux options :
+
+- **Travail en groupes puis mise en commun.** Quatre groupes traitent chacun un bloc (A : partie 1, B : 2.1, C : 2.2 et 2.3, D : partie 3), puis chaque groupe présente en 3 minutes. La partie 4 est traitée collectivement.
+- **Parcours minimal** pour un travail individuel : Q0.2, Q1.1, Q1.4, Q1.9, Q1.10, Q2.3, Q2.5, Q2.9 à Q2.12, Q2.15, Q3.3, Q3.5, Q3.7 et la partie 4.
+
+Ordre de lecture pour la diode idéale : Altium d'abord (il explique le problème d'un MOSFET seul), powerelectronictips ensuite (il donne le circuit exact du schéma). Le titre de l'article Altium est trompeur : il traite de la protection contre l'inversion de polarité, pas d'un pont redresseur.
+
+---
+
+## Partie 0
+
+**Q0.3** Repères :
+
+| Rail | Batterie seule | USB seul (sans batterie) | USB + batterie | Batterie + boost OTG |
+|---|---|---|---|---|
+| `VBUS` | 0 V | ≈ 5 V | ≈ 5 V | 0 V (côté connecteur) |
+| `USB_5V` | 0 V | ≈ 5 V | ≈ 5 V | ≈ 5 V (sortie du boost) |
+| `SYS` | ≈ VBAT | régulé ≥ 3,5 V (NVDC) | ≈ VBAT + 50 mV, ≥ 3,5 V | ≈ VBAT |
+| `3.3V` | oui (depuis SYS) | oui | oui | oui |
+
+Le boost n'alimente pas `SYS` : il prélève sur la batterie et délivre sur la broche VBUS du BQ25896 (§9.2.5, p. 19 ; Figure 46, p. 49). La diode idéale `VT1` isole le connecteur USB du rail `USB_5V`.
+
+---
+
+## Partie 1
+
+### Q1.1 : valeurs du schéma (à vérifier sur le PDF)
+
+| Broche / rôle | Schéma | Recommandation datasheet |
+|---|---|---|
+| `VBUS` | `C69` 1 µF | 1 µF près de la broche (p. 5) |
+| `PMID` | `C70` 10 µF | reste de la capacité d'entrée ; 8,2 µF typique pour 3 à 5 A (p. 50) |
+| `BTST`–`SW` | `C64` 47 nF | 0,047 µF |
+| `REGN` | `C73` 4,7 µF | 4,7 µF, tenue 10 V |
+| `SYS` | `C67` + `C68` = 20 µF | 20 µF près de la broche |
+| `BAT` | `C71` + `C72` = 20 µF | 10 µF près de la broche |
+| Inductance | `L12` 1 µH | 1 µH (p. 51) |
+| `VDD` (jauge) | `C65` 470 nF + `C66` 2,2 µF | ≥ 2,2 µF |
+| `BAT` (jauge) | `C63` 1 µF | 1 µF |
+
+Points de discussion : les 20 µF sur `BAT` dépassent la recommandation, ce qui n'est pas gênant mais coûte de la place ; l'effet de la polarisation DC sur les céramiques (capacité effective plus faible sous tension) justifie de mettre plus que le minimum.
+
+### Q1.2
+
+`VBUS` et `PMID` sont séparés par le MOSFET de blocage RBFET (Q1) : on met 1 µF côté connecteur (broche VBUS) et le reste côté PMID, là où circulent les courants de découpage (p. 6, p. 50). Condensateurs de 25 V ou plus recommandés pour une entrée jusqu'à 14 V (p. 50).
+
+### Q1.3 : ondulation de courant
+
+- V<sub>BUS</sub> = 5 V, V<sub>BAT</sub> = 3,8 V : D = 0,76, ΔI = 5 × 0,76 × 0,24 / (1,5 MHz × 1 µH) ≈ **0,61 A**, soit 20 % de 3 A. C'est en bas de la plage recommandée (20 à 40 %).
+- Saturation minimale : I<sub>CHG</sub> + ΔI/2 ≈ 3 + 0,3 = **3,3 A** pour un courant de charge de 3 A.
+- ★ V<sub>BUS</sub> = 9 V : D ≈ 0,42, ΔI ≈ **1,46 A**, soit environ 49 % de 3 A. Au-dessus de la plage recommandée : le maximum d'ondulation est à D = 0,5, et une tension d'entrée plus haute impose une inductance plus grande. Pour le projet, l'USB à 5 V est le cas de référence.
+
+### Q1.4 à Q1.7 : I²C
+
+t<sub>r</sub> ≈ R × C<sub>b</sub> avec C<sub>b</sub> = 100 pF :
+
+| R | t<sub>r</sub> |
+|---|---|
+| 1,5 kΩ | ≈ 150 ns ✓ |
+| 4,7 kΩ | ≈ 470 ns ✗ (> 300 ns) |
+| 10 kΩ | ≈ 1000 ns ✗ |
+
+R maximale pour 300 ns avec 100 pF : **≈ 3,5 kΩ**. Avec 10 kΩ, le bus ne tient le mode rapide que si la capacité de bus est faible (< 35 pF). La valeur de C<sub>b</sub> dépend du routage : donner un exemple de plage (50 à 200 pF) pour la discussion.
+
+Courant dans le pull-up : (3,3 − 0,4) / 1,5 kΩ ≈ **1,9 mA**, sous la capacité de sink de 5 mA donnée dans le datasheet du chargeur (p. 11). À 100 Ω : 29 mA, hors spécification et gaspillage de puissance. Pour la jauge, vérifier son V<sub>OL</sub> et son courant de sink *(à vérifier)*.
+
+Le chargeur répond à l'adresse 0x6B (p. 4). L'adresse de la jauge n'est pas dans ce que j'ai lu *(à vérifier dans le datasheet ou le TRM)* : c'est justement le point de Q1.6 (deux adresses différentes, pull-ups partagés, niveaux logiques compatibles).
+
+`R42` (pull-up de `INT`) et `R34` (pull-up de `GPOUT`) : sorties à drain ouvert, il faut une résistance vers le rail logique pour obtenir le niveau haut. Le datasheet de la jauge interdit de laisser `GPOUT` flottant.
+
+### Q1.8 à Q1.11 : sonde de température
+
+- À 0 °C : R39 ‖ 27,28 kΩ ≈ 14,3 kΩ, rapport ≈ **73,2 %**, cohérent avec T1 (73,25 %).
+- À 60 °C : R39 ‖ 3,02 kΩ ≈ 2,75 kΩ, rapport ≈ **34,4 %**, cohérent avec T5 (34,375 %).
+- Hors plage T1 à T5 : charge suspendue (p. 22–23). STAT clignote (p. 25), et REG0C (`NTC_FAULT`) indique le défaut (p. 44).
+
+**Q1.9** Sans rien : R38 et R39 seuls, soit 30,1 / 35,33 ≈ **85,2 %**. C'est au-dessus de T1 (73,25 %), donc vu comme « trop froid » : charge suspendue. Aussi au-dessus de 80 %, plage de lecture de l'ADC (p. 11). En boost, dépasse le seuil BCOLD (77 ou 80 %), donc boost suspendu.
+
+**Q1.10** Une résistance fixe de **10 kΩ** en parallèle de R39 (elle imite la 103AT à 25 °C) : 30,1 kΩ ‖ 10 kΩ ≈ 7,51 kΩ, soit **58,9 %** de REGN. C'est entre T3 (44,75 %) et T2 (68,25 %), donc charge à courant et tension nominaux. C'est le rôle de `R43`. Alternative du datasheet (Figure 57, p. 54) : 10 kΩ / 10 kΩ, soit 50 %.
+
+**Q1.11** Seuils du boost : froid 77 % (BCOLD0) ou 80 % (BCOLD1), chaud 37,75 %, 34,375 % ou 31,25 % (BHOT). 58,9 % est dans la plage. Le bit `BHOT[1:0] = 11` de REG01 désactive la protection thermique du boost (Table 7, p. 33).
+
+**Q1.12** Le schéma est ambigu sur `R43`. La note suggère qu'il est monté par défaut (émulation de thermistance) et retiré si la batterie en a une, alors que le dessin porte la mention DNP. À vérifier auprès de la BOM de la version utilisée. Bon exemple de cohérence à contrôler entre le schéma et sa documentation.
+
+---
+
+## Partie 2
+
+### 2.1 Diode idéale
+
+**Q2.1** Un MOSFET P seul conduit à l'envers par sa **diode de corps** (drain vers source pour un canal P) dès que la tension côté charge dépasse celle de l'entrée : dans votre carte, le boost à 5 V se retrouverait sur le connecteur USB.
+
+**Q2.3** Repères, avec R3 = R4 = 100 kΩ (à vérifier sur le schéma) :
+
+| État | Courant de Q1 | Nœud B | V<sub>GS</sub> | VT1 |
+|---|---|---|---|---|
+| Charge USB (VBUS > USB_5V de quelques dizaines de mV) | faible | ≈ 0 V | ≈ −5 V | passant |
+| Boost (VBUS = 0, USB_5V = 5 V) | fort (saturé) | ≈ USB_5V | ≈ 0 V | bloqué |
+| Égalité des tensions | ≈ courant de référence de Q2 (≈ (5 − 0,7)/100 kΩ ≈ 43 µA) | ≈ 4,3 V | ≈ −0,7 V | bloqué |
+
+Estimation du seuil : Q1 doit voir son courant diviser par 4 environ pour amener le nœud B sous 1 V ; cela demande un écart de l'ordre de V<sub>T</sub> × ln 4 ≈ **36 mV** entre VBUS et USB_5V *(estimation)*. L'article donne pour son propre circuit une chute maximale d'environ 32 mV à 2 A. La sensibilité aux écarts de V<sub>BE</sub> justifie le double transistor apparié.
+
+**Q2.4** Chute = I × R<sub>DS(on)</sub>. Le R<sub>DS(on)</sub> du `DMP1045U` est à lire dans son datasheet (valeur *à vérifier*, spécifiée à un V<sub>GS</sub> donné ; ici V<sub>GS</sub> ≈ −4,9 V). Comparer : Schottky 0,3 à 0,4 V, diode standard 0,6 à 0,7 V (Altium).
+
+**Q2.5** Point à faire remarquer : en boost, `Q1` a son émetteur à USB_5V et sa base à environ USB_5V − 0,7 V (jonction émetteur-base passante), donc le nœud A est à ≈ 4,3 V. L'émetteur de `Q2` est à VBUS = 0 V et sa base au nœud A : sa jonction émetteur-base est **polarisée en inverse de ≈ 4,3 V** (≈ 4,8 V si le boost est à 5,5 V). Comparer à V<sub>EBO</sub> du `MMDT2907A` *(valeur à vérifier, typiquement 5 V pour cette famille)* : la marge est très faible. Un commentaire sous l'article powerelectronictips signale la même limite pour les doubles PNP. Conséquence pour le projet : ne pas monter BOOSTV (REG0A, plage 4,55 à 5,51 V) sans vérifier cette marge.
+
+**Q2.6** Critères : coût et encombrement, courant de repos, tension maximale supportée, seuil de basculement et robustesse (appariement), chute à courant nominal, disponibilité. Un contrôleur dédié coûte plus cher mais supprime la limite V<sub>EBO</sub>.
+
+**Q2.7** *(hypothèse)* : `VD37` est probablement une place pour une diode optionnelle (Schottky ou protection). Je n'ai pas pu lire sa polarité sur le PDF, à contrôler sur le schéma original.
+
+Vérifier aussi les brochages `MMDT2907A` (E1 = 1, B1 = 2, C1 = 6, E2 = 4, B2 = 5, C2 = 3) et `DMP1045U` (G = 1, S = 2, D = 3), utilisés dans mon analyse.
+
+### 2.2 OTG et 5 V interne
+
+**Q2.8** Conditions (p. 5 et §9.2.5, p. 19) : batterie au-dessus du seuil (BATLOWV dans le texte ; le tableau p. 10 donne V<sub>OTG_BAT_EN</sub> de 2,9 à 3,1 V avec `MIN_VBAT_SEL` = 0, à comparer) ; V<sub>BUS</sub> < V<sub>BAT</sub> + V<sub>SLEEP</sub> ; broche `OTG` haute **et** `OTG_CONFIG` = 1 (REG03 bit 5) ; tension `TS` dans la plage BHOT/BCOLD ; délai de 30 ms.
+
+**Q2.9**
+
+| Situation | `VT5` | `OTG` |
+|---|---|---|
+| USB branché (VBUS ≈ 5 V, V<sub>GS</sub> ≈ 4,95 V) | passant | **bas** |
+| USB débranché | bloqué | **haut** (pull-up `R44` vers SYS) |
+
+**Q2.10** *(hypothèse)* Le datasheet ne décrit pas ce cas. Une lecture possible : forcer `OTG` bas **dès** que VBUS monte, sans attendre la logique interne de détection, pour éviter que deux sources se retrouvent en conflit pendant la latence. À tester en simulation ou sur carte : brancher l'USB pendant que le boost tourne.
+
+**Q2.11** En boost, `USB_5V` est à 5 V mais VBUS (côté connecteur, derrière `VT1`) reste à 0 V. Si `VT5` était commandé par `USB_5V`, il forcerait `OTG` bas dès que le boost démarre et le couperait aussitôt.
+
+**Q2.12**
+- Le 5 V du boost est sur **VBUS** (broche du BQ25896, rail `USB_5V`), pas sur SYS : SYS suit la batterie. Sources : p. 3 ; §9.2.5 ; Figure 46.
+- USB branché : le boost s'arrête, `USB_5V` vient de VBUS à travers `VT1`. USB débranché : le boost peut redémarrer si toutes les conditions sont remplies. Point ouvert à traiter en séance 2 ou par test : `OTG_CONFIG` est-il conservé après un branchement USB ? Le datasheet indique qu'il est effacé lors d'une surtension du boost (§9.2.14.2.2), mais je n'ai pas vu la même information pour un branchement USB *(à vérifier)*.
+- Puissance : `BOOST_LIM` par défaut 1,4 A (REG0A, ≈ 7 W à 5 V), jusqu'à 2 A (≈ 10 W). Rendement d'environ 93 % à 1 A (Figure 3, p. 13).
+
+**Q2.13** À 3,8 V et 93 % : 5 V × 1 A / (0,93 × 3,8 V) ≈ **1,4 A** côté batterie. À 3,2 V (rendement un peu inférieur sur la Figure 3), ≈ 1,7 A. Le boost sort en dessous de V<sub>OTG_BAT</sub> (2,7 à 2,9 V avec `MIN_VBAT_SEL` = 0, p. 10).
+
+**Q2.14** Éléments de discussion :
+- (a) sortie du microcontrôleur : état flottant au démarrage tant que le GPIO n'est pas configuré, donc besoin d'un pull-down ;
+- (b) pull-up fixe : le boost est piloté uniquement par `OTG_CONFIG`, plus simple, mais aucun verrou matériel ;
+- (c) réseau du Flipper : verrou matériel en présence d'USB, coût de 3 composants.
+- ★ Avec l'USB branché, `VT5` passant tire `R44` vers la masse : courant ≈ V<sub>SYS</sub> / 10 kΩ, soit environ 0,4 mA.
+
+### 2.3 QON
+
+**Q2.15** (p. 12, p. 26)
+
+| Mécanisme | Déclencheur | Durée | Conditions | Effet |
+|---|---|---|---|---|
+| Sortie du ship mode | `QON` bas | 0,9 à 1,3 s | BATFET coupé | BATFET réactivé |
+| Entrée en ship mode | `BATFET_DIS` = 1 (I²C, REG09) | immédiat, ou 10 à 15 s si `BATFET_DLY` = 1 | — | BATFET coupé, SYS = 0 V |
+| Reset complet | `QON` bas | 16 à 23 s | VBUS absent, `BATFET_RST_EN` = 1 (défaut) | BATFET coupé 250 à 400 ms puis réactivé |
+
+Autres façons de sortir du ship mode : brancher un adaptateur, effacer `BATFET_DIS`, `REG_RST`.
+
+**Q2.16** L'entrée en ship mode se commande par I²C, pas par `QON`. En ship mode, SYS est à 0 V et le microcontrôleur n'est plus alimenté : seule `QON`, lue par le chargeur, peut réveiller le système. En fonctionnement normal, `QON` a un pull-up interne de 200 kΩ et le microcontrôleur peut lire le bouton sans effet sur le chargeur (sauf appui de 16 à 23 s).
+
+**Point à ajouter à la discussion** : la tension de repos du pull-up interne de `QON` est de 4,3 V (VBUS = 5 V) à 5,8 V (VBUS = 9 V) selon le tableau p. 11, et vaut la tension batterie sans USB. Elle peut dépasser la tension supportée par un GPIO 3,3 V non tolérant 5 V. **À vérifier pour le microcontrôleur de votre projet** (les broches tolérantes 5 V des STM32 s'appellent FT, mais toutes ne le sont pas). Un réseau de protection ou une conception de niveau peut être nécessaire. Question à ajouter à la fiche : « Quelle est la tension de repos de `QON` ? Est-elle compatible avec le GPIO ? »
+
+**Q2.17** t<sub>QON_RST</sub> : 18 s typique (p. 6), 15 s typique (§9.2.10.3, p. 26), **16 à 23 s** (tableau des timings, p. 12). Seul le tableau des timings fait foi : le firmware doit tolérer toute la fenêtre.
+
+---
+
+## Partie 3
+
+**Q3.1** Tension seule : la courbe tension-charge d'un Li-ion est plate sur une grande plage, et la tension chute sous charge (résistance interne), donc l'estimation dépend du courant et de la température.
+
+**Q3.2** `R37` est **dans le fil batterie**, entre les broches BAT du chargeur (côté SYS via le BATFET) et la borne de la batterie. Elle mesure le courant net de la batterie : charge, décharge vers le système, courant du boost. C'est la configuration « system-side » du datasheet du BQ27220 : SRP côté PACKP (batterie), SRN côté système.
+
+**Q3.3**
+- P = 3² × 0,010 = **90 mW** ; chute = 3 × 0,010 = **30 mV**.
+- 10 mΩ est imposé : la jauge est pré-calibrée pour une résistance de 10 mΩ à 1 %, sans calibration (§5, pin SRP/SRN). Recommandation : 1 %, 50 ppm, 1 W (§8.2.2.3). Ne pas choisir librement.
+- Plus grande : meilleure résolution à faible courant mais plus de pertes ; la plage d'entrée du coulomb-mètre est à lire dans la §6.10 du datasheet *(non lue)*.
+- Le chargeur régule sur sa broche BAT, donc côté chargeur de `R37` : la batterie voit V<sub>REG</sub> − I × R (30 mV à 3 A, décroissant en fin de charge).
+- Compensation : `BAT_COMP` (REG08), plage 0 à 140 mΩ par pas de 20 mΩ, avec écrêtage `VCLAMP`. Avec 10 mΩ pour `R37` plus la résistance du câblage, 20 mΩ est possible : à discuter.
+
+**Q3.4** Réponses (sources : §5 et §8.2.2 du datasheet BQ27220)
+
+| Broche | Rôle | Précautions |
+|---|---|---|
+| `BAT` | Entrée du LDO interne et mesure de tension | 1 µF près du gauge, Kelvin sur PACKP |
+| `SRP` / `SRN` | Entrées différentielles du coulomb-mètre | Kelvin sur la résistance : SRP côté batterie, SRN côté système |
+| `VDD` | Sortie du régulateur 1,8 V | ≥ 2,2 µF, n'alimente rien d'autre |
+| `GPOUT` | Sortie à drain ouvert : interruption d'état de charge par défaut, ou alerte batterie faible | Ne jamais laisser flottant, pull-up 10 kΩ ; un front sur cette broche sort le gauge du mode SHUTDOWN |
+| `BIN` | Détection d'insertion et/ou thermistance | Ne jamais court-circuiter à VDD ou VSS ; 10 kΩ vers VSS si inutilisée ; pull-up éventuel uniquement vers VDD |
+| `SDA` / `SCL` | I²C, drain ouvert | 10 kΩ typique ; si les pull-ups peuvent être débranchés, 1 MΩ vers VSS |
+
+**Q3.5** BAT est une entrée haute impédance qui alimente aussi le LDO : son courant traverserait la piste de mesure si SRP était partagée avec elle, faussant les quelques dizaines de mV du shunt. Deux broches permettent deux chemins Kelvin séparés : croquis attendu avec deux pistes fines qui partent des bornes de `R37`, et non de la piste de puissance.
+
+**Q3.6** Le régulateur de 1,8 V alimente les circuits internes ; le datasheet précise qu'il ne doit alimenter aucun autre composant.
+
+**Q3.7**
+- 10 kΩ vers VSS avec `BI_PU_EN` = 1 (défaut) : le gauge voit la batterie comme toujours présente. C'est le choix recommandé pour une batterie embarquée et celui du Flipper (`R35`).
+- Pull-up 1,8 MΩ vers VDD plus résistance dans le pack : détection réelle, mais demande un contact supplémentaire, impossible avec deux fils.
+- `BI_PU_EN` = 0 et commandes `BAT_INSERT` / `BAT_REMOVE` : l'hôte doit connaître l'état par un autre moyen.
+
+**Q3.8** *(à vérifier)* : lire le TRM SLUUBD4 pour la sélection de la source de température. Ne pas distribuer de réponse avant d'avoir vérifié.
+
+---
+
+## Partie 4
+
+**Exemples de lignes pour le contrat firmware**
+
+| Contrainte matérielle | Garantie firmware |
+|---|---|
+| Boost : OTG_CONFIG et broche OTG requis | Écrire `OTG_CONFIG` avant de demander le 5 V ; le réécrire après un reset |
+| Registres réinitialisés à l'expiration du watchdog (40 s par défaut) | Rafraîchir `WD_RST` (REG03) avant l'expiration, ou désactiver le watchdog (`WATCHDOG` = 00 dans REG07) |
+| Défauts remontés par REG0C | Lire REG0C deux fois pour obtenir l'état courant |
+| Ship mode par `BATFET_DIS` | Faire l'arrêt logiciel en dernier : SYS tombe à 0 V |
+| Jauge non configurée d'usine | Initialiser la mémoire de données (TRM SLUUBD4) |
+| Chargeur en mode par défaut : ICHG = 2,048 A | Régler ICHG et ITERM selon la fiche de la cellule |
+| `QON` peut dépasser le niveau du GPIO | Vérifier la tolérance du microcontrôleur |
+| `GPOUT` réveille la jauge | Câbler `GPOUT` sur un GPIO |
+
+**Réponse à la question teaser.** Au bout d'environ 40 s (`WATCHDOG` = 01, défaut de REG07), le watchdog expire, le chargeur repasse en mode par défaut et **`ICHG` revient à 2,048 A** (Table 10, p. 36 : réinitialisé par le watchdog). Seuls `IINLIM`, `VINDPM`, `VINDPM_OS`, `BATFET_RST_EN`, `BATFET_DLY` et `BATFET_DIS` sont conservés (§9.3.1, p. 31). Point de sécurité à faire remarquer : 2 A sur une petite cellule peut dépasser son courant de charge maximal.
+
+---
+
+## À vérifier avant la séance
+
+1. Les valeurs de composants du tableau Q1.1 et de `R3`, `R4`, `R43` sur le schéma original.
+2. La polarité de `VD37` et le statut DNP de `R43`.
+3. Les datasheets `MMDT2907A` (V<sub>EBO</sub>, brochage), `DMP1045U` (R<sub>DS(on)</sub>, V<sub>GS(th)</sub>, V<sub>GS</sub> max), `DMN313DLT` (V<sub>GS(th)</sub>).
+4. L'adresse I²C de la jauge, ses niveaux de sink, et la plage d'entrée du coulomb-mètre (§6.10).
+5. La source de température utilisée par la jauge sans thermistance.
+6. La tolérance en tension du GPIO du microcontrôleur du projet vis-à-vis du pull-up interne de `QON`.
+7. Le comportement de `OTG_CONFIG` après un branchement USB pendant le boost.
